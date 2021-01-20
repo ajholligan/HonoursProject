@@ -40,7 +40,7 @@ def batch_elastic_transform(images, sigma, alpha, height, width, random_state=No
 
 if __name__ == "__main__":
     import matplotlib.pyplot as plt
-    from tensorflow.examples.tutorials.mnist import input_data
+    # tensorflow.examples.tutorials.mnist import input_data
     '''
     the following code demonstrates how gaussian_filter works by ploting
     the displacement field before and after applying the gaussian_filter
@@ -56,8 +56,8 @@ if __name__ == "__main__":
     plt.quiver(x, y, dx2, dy2)
     plt.show()
     
-    mnist = input_data.read_data_sets("MNIST_data", one_hot=True)
-    img = mnist.train.images[0]
+    #mnist = input_data.read_data_sets("MNIST_data", one_hot=True)
+    img = "C:\\Users\\aholl\\Downloads\\dataverse_files\\HAM10000_images_part_1\\ISIC_0024306"
     plt.imshow(img.reshape(28, -1), cmap='gray')
     plt.show()
     dimg = elastic_transform(img.reshape(28, -1), sigma=4, alpha=20)
