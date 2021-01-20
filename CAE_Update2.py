@@ -16,31 +16,44 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from tensorflow import keras
 from tensorflow.keras import layers
-
+tf.compat.v1.disable_v2_behavior()
 from autoencoder_helpers import makedirs, list_of_distances, print_and_write, list_of_norms
 from data_preprocessing import batch_elastic_transform
-
+#tf.compat.v1.enable_eager_execution()
 #import
 directory = "C:\\Users\\aholl\\Downloads\\dataverse_files\\HAM10000_images_part_1\\"
 df = pd.read_csv(directory + 'HAM10000_metadata.csv')
 
-file_paths = df['lesion_id'].values
-#print(file_paths)
+file_paths = df['lesion_id'].values+".jpg" 
+print(file_paths)
 labels = df['dx'].values
 ds_train = tf.data.Dataset.from_tensor_slices((file_paths, labels))
 
-
+@tf.function
 def read_image(image_file, lable):
     image = tf.io.read_file(directory + image_file)
     image = tf.image.decode_image(image, channels=1, dtype=tf.float32)
     return image, lable
 
 ds_train = ds_train.map(read_image).batch(2)
+
+def next_batch(num, data, labels):
+    '''
+    Return a total of `num` random samples and labels. 
+    '''
+    idx = np.arange(0 , len(data))
+    np.random.shuffle(idx)
+    idx = idx[:num]
+    data_shuffle = [data[ i] for i in idx]
+    labels_shuffle = [labels[ i] for i in idx]
+
+    return np.asarray(data_shuffle), np.asarray(labels_shuffle)
+
 # # Import MNIST data
 # from tensorflow.examples.tutorials.mnist import input_data
 # mnist = input_data.read_data_sets("MNIST_data", one_hot=True)
 
-#tf.compat.v1.disable_eager_execution()
+
 GPUID = 1
 os.environ["CUDA_VISIBLE_DEVICES"] = str(GPUID)
 
@@ -187,17 +200,20 @@ last_layer = {
 }
 
 # padding can be either "SAME" or "VALID"
+@tf.function
 def conv_layer(input, filter, bias, strides, padding="VALID", nonlinearity=tf.nn.relu):
     conv = tf.nn.conv2d(input=input, filters=filter, strides=strides, padding=padding)
     act = nonlinearity(conv + bias)
     return act
 
 # tensorflow's conv2d_transpose needs to know the shape of the output
+@tf.function
 def deconv_layer(input, filter, bias, output_shape, strides, padding="VALID", nonlinearity=tf.nn.relu):
     deconv = tf.nn.conv2d_transpose(input, filter, output_shape, strides, padding=padding)
     act = nonlinearity(deconv + bias)
     return act
 
+@tf.function
 def fc_layer(input, weight, bias, nonlinearity=tf.nn.relu):
     return nonlinearity(tf.matmul(input, weight) + bias)
 
@@ -369,7 +385,7 @@ with tf.compat.v1.Session(config=config) as sess:
         train_ce, train_ae, train_e1, train_e2, train_te, train_ac = 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
         # Loop over all batches
         #############################################################changes
-        for x, y in ds_train:
+        for i in range(n_valid_batch):
             batch_x, batch_y = ds_train
             elastic_batch_x = batch_elastic_transform(batch_x, sigma=sigma, alpha=alpha, height=input_height, width=input_width)
             _, ce, ae, e1, e2, te, ac = sess.run(
@@ -407,7 +423,7 @@ with tf.compat.v1.Session(config=config) as sess:
         valid_ce, valid_ae, valid_e1, valid_e2, valid_te, valid_ac = 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
         # Loop over all batches
         for i in range(n_valid_batch):
-            batch_x, batch_y = ds_train.next_batch(batch_size)
+            batch_x, batch_y = ds_train.next_batch(batch_size, ds_train.image, ds_train.lable)
             ce, ae, e1, e2, te, ac = sess.run(
                                     (class_error,
                                     ae_error,
